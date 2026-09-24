@@ -1,0 +1,48 @@
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  run-osc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup OSC
+        uses: eclipse-apoapsis/actions/setup-osc@extract-server-version
+        with:
+          url: https://ort-api.scw.doubleopen.io
+          token: ${{ secrets.ORT_SERVER_TOKEN }}
+
+      - name: Start ORT run
+        run: |
+          osc runs start --parameters '{
+            "revision": "${{ github.head_ref || github.ref_name }}",
+            "jobConfigs": {
+              "analyzer": {
+                "allowDynamicVersions": true
+              },
+              "advisor": {},
+              "evaluator": {},
+              "reporter": {}
+            }
+          }'
+        env:
+          OSC_REPOSITORY_ID: 618
+          OSC_RUNS_START_WAIT: true
+
+      - name: Download Reports
+        run: |
+          osc runs download reports
+        env:
+          OSC_DOWNLOAD_REPORTS_FILE_NAMES: 'scan-report-web-app.html'
+          OSC_DOWNLOAD_REPORTS_OUTPUT_DIR: './reports'
+
+      - name: Upload reports
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports
+          path: reports/
